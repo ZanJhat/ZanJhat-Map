@@ -1,6 +1,5 @@
 # ZanJhat Map
 
-## Description
 Adds a minimap and world map with customizable markers to help players navigate and track important locations.
 
 ---
