@@ -1,0 +1,7 @@
+<ZanJhatMap>
+    <EntityTemplate Name="Player" Guid="4be6c1c5-d65d-4537-8a8b-a391969e6dc2">
+        <MemberComponentTemplate Name="Minimap" Guid="ffffffff-0001-0000-0001-000000000000" InheritanceParent="b05700ed-7e4e-4679-98f5-b597f421496b">
+		    <Parameter Name="Class" Guid="ffffffff-0001-0000-0001-000000000001" Value="ZanJhat.Map.ComponentMinimap" Type="string" />
+        </MemberComponentTemplate>
+    </EntityTemplate>
+</ZanJhatMap>
