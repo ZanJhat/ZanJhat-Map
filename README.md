@@ -14,7 +14,7 @@ Adds a minimap and world map with customizable markers to help players navigate 
 ---
 
 ## Requirements
-- ZanJhat Core >= 1.0.0
+- ZanJhat Core >= 2.0.0
 
 ---
 
