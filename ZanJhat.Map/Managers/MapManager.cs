@@ -180,7 +180,9 @@ namespace ZanJhat.Map
             if (terrain == null)
                 return 0;
 
-            int y = terrain.GetTopHeight(x, z);
+            // Bỏ qua terrain.GetTopHeight(x, z) vì nó bị trễ do luồng ánh sáng chưa cập nhật.
+            // Bắt đầu quét thẳng từ đỉnh của thế giới (y = 255) xuống đáy.
+            int y = 255; // terrain.GetTopHeight(x, z);
 
             while (y > 0)
             {
@@ -223,6 +225,10 @@ namespace ZanJhat.Map
             int value = terrain.GetCellValue(worldX, topY, worldZ);
             int contents = Terrain.ExtractContents(value);
 
+            // Nếu là nội thất → trả về màu trung bình của nội thất
+            if (IsFurniture(contents))
+                return GetFurnitureColor(subsystemTerrain, value);
+
             int waterIndex = BlocksManager.GetBlockIndex<WaterBlock>();
 
             if (IsSeaPlant(contents))
@@ -231,14 +237,11 @@ namespace ZanJhat.Map
                 contents = waterIndex;
             }
 
-            // Nếu không phải nước → trả về bình thường
+            // Nếu không phải nước → trả về màu bình thường
             if (contents != waterIndex)
-            {
-                Color baseColor = GetBlockColor(subsystemTerrain, value, worldX, worldZ);
-                return baseColor;
-            }
+                return GetBlockColor(subsystemTerrain, value, worldX, worldZ);
 
-            // Có nước
+            // Xử lý khi có nước
 
             int waterTopY = topY;
             int depth = 0;
@@ -256,19 +259,27 @@ namespace ZanJhat.Map
                 waterTopY--;
             }
 
-            // Lấy block đáy
+            // Lấy value, color của đáy
             int bottomValue = terrain.GetCellValue(worldX, waterTopY, worldZ);
             Color bottomColor = GetBlockColor(subsystemTerrain, bottomValue, worldX, worldZ);
 
             // Lấy màu nước
-            Color waterColor = GetBlockColor(
-                subsystemTerrain,
-                Terrain.MakeBlockValue(BlocksManager.GetBlockIndex<WaterBlock>()),
-                worldX,
-                worldZ);
+            Color waterColor = GetBlockColor(subsystemTerrain, Terrain.MakeBlockValue(waterIndex), worldX, worldZ);
 
             // Blend theo độ sâu
             return ColorUtils.BlendWithDistance(bottomColor, waterColor, depth, 8f, 0.75f);
+        }
+
+        public static Color GetFurnitureColor(SubsystemTerrain subsystemTerrain, int value)
+        {
+            int data = Terrain.ExtractData(value);
+            int designIndex = FurnitureBlock.GetDesignIndex(data);
+            FurnitureDesign design = subsystemTerrain.SubsystemFurnitureBlockBehavior.GetDesign(designIndex);
+
+            if (design != null)
+                return FurnitureMapRenderer.GetFurnitureAverageMapColor(design, subsystemTerrain);
+
+            return Color.White;
         }
 
         public static Color GetBlockColor(SubsystemTerrain subsystemTerrain, int value, int x, int z)
@@ -295,6 +306,21 @@ namespace ZanJhat.Map
 
             Color blockColor = blockPixelData.Color;
 
+            // Xử lý IPaintableBlock (Khối được sơn màu)
+            if (block is IPaintableBlock paintableBlock)
+            {
+                int? paintColor = paintableBlock.GetPaintColor(value);
+                if (paintColor.HasValue)
+                {
+                    // Lấy màu từ Palette của thế giới
+                    Color tintColor = SubsystemPalette.GetColor(subsystemTerrain, paintColor);
+
+                    // Trộn (Multiply) màu sơn với màu pixel gốc của khối
+                    blockColor = blockColor * tintColor;
+                }
+            }
+
+            // Xử lý màu môi trường (Cỏ, Nước, Lá cây...)
             blockColor = ApplyEnvironmentColor(blockName, blockColor, block, contents, value, subsystemTerrain, x, z, blockPixelData.NeedChangeWithEnvironment);
 
             return blockColor;
@@ -371,6 +397,11 @@ namespace ZanJhat.Map
             BlocksManager.GetBlockIndex<LightbulbBlock>(),
             BlocksManager.GetBlockIndex<TargetBlock>()
         };
+
+        private static bool IsFurniture(int content)
+        {
+            return content == BlocksManager.GetBlockIndex<FurnitureBlock>();
+        }
 
         private static bool IsSeaPlant(int content)
         {
